@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Volumetria DC-PI2</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{color-scheme:light dark}*{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh}
+  body{
+    --bg:#f5f5f4;--surface:#fcfcfb;--text-primary:#0b0b0b;
+    --text-secondary:#52514e;--text-muted:#8a8983;--border:#e5e5e3;
+    --bar1:#2a78d6;--bar2:#eb6834;--bar3:#1baf7a;--bar4:#eda100;--bar5:#e87ba4;
+    --accent:#2a78d6;--grid:#ececea;
+    --tooltip-bg:#0b0b0b;--tooltip-text:#f0efec;
+    --input-bg:#fff;--badge-bg:#eef4fc;--badge-text:#1a5ba8;
+    --expand-bg:#f0f4fa;--row-hover:#f8f8f7;
+  }
+  @media(prefers-color-scheme:dark){body:not([data-theme="light"]){
+    --bg:#111110;--surface:#1a1a19;--text-primary:#f0efec;
+    --text-secondary:#c3c2b7;--text-muted:#8a8983;--border:#2e2e2c;
+    --bar1:#3987e5;--bar2:#d95926;--bar3:#199e70;--bar4:#c98500;--bar5:#d55181;
+    --accent:#3987e5;--grid:#252524;
+    --tooltip-bg:#f0efec;--tooltip-text:#0b0b0b;
+    --input-bg:#222221;--badge-bg:#1a2a40;--badge-text:#6aadff;
+    --expand-bg:#1a2233;--row-hover:#222221;
+  }}
+  body[data-theme="dark"]{
+    --bg:#111110;--surface:#1a1a19;--text-primary:#f0efec;
+    --text-secondary:#c3c2b7;--text-muted:#8a8983;--border:#2e2e2c;
+    --bar1:#3987e5;--bar2:#d95926;--bar3:#199e70;--bar4:#c98500;--bar5:#d55181;
+    --accent:#3987e5;--grid:#252524;
+    --tooltip-bg:#f0efec;--tooltip-text:#0b0b0b;
+    --input-bg:#222221;--badge-bg:#1a2a40;--badge-text:#6aadff;
+    --expand-bg:#1a2233;--row-hover:#222221;
+  }
+
+  .container{max-width:900px;margin:0 auto;padding:24px 16px}
+  header{text-align:center;margin-bottom:24px}
+  header h1{font-size:22px;font-weight:700;letter-spacing:-0.3px}
+  header p{font-size:13px;color:var(--text-muted);margin-top:4px}
+
+  .theme-toggle{position:fixed;top:12px;right:12px;width:36px;height:36px;border-radius:50%;background:var(--surface);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;z-index:100}
+
+  .drop-zone{border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;background:var(--surface);margin-bottom:20px;transition:border-color .2s,background .2s}
+  .drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:var(--badge-bg)}
+  .drop-zone .icon{font-size:36px;margin-bottom:8px}
+  .drop-zone p{color:var(--text-secondary);font-size:14px}
+  .drop-zone .hint{font-size:12px;color:var(--text-muted);margin-top:6px}
+
+  .stats-row{display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+  .stat-tile{flex:1;min-width:100px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+  .stat-tile .label{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600}
+  .stat-tile .value{font-size:24px;font-weight:700;margin-top:3px;font-variant-numeric:tabular-nums}
+  .stat-tile .sub{font-size:11px;color:var(--text-secondary);margin-top:2px}
+
+  .filename-bar{display:flex;align-items:center;gap:8px;margin-bottom:16px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:13px;color:var(--text-secondary)}
+  .filename-bar .name{font-weight:600;color:var(--text-primary)}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px}
+  .card h2{font-size:15px;font-weight:600;margin-bottom:14px}
+  .badge{display:inline-block;background:var(--badge-bg);color:var(--badge-text);font-size:11px;font-weight:600;padding:3px 8px;border-radius:6px;margin-left:8px;vertical-align:middle}
+
+  /* Filter chips */
+  .filter-section{margin-bottom:16px}
+  .filter-section .filter-label{font-size:12px;font-weight:600;color:var(--text-muted);margin-bottom:8px;display:block}
+  .chip-row{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{
+    padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;
+    cursor:pointer;border:1px solid var(--border);background:var(--surface);
+    color:var(--text-secondary);transition:all .15s;user-select:none;
+  }
+  .chip:hover{border-color:var(--accent);color:var(--accent)}
+  .chip.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .chip-all{font-size:11px;color:var(--text-muted);cursor:pointer;text-decoration:underline;align-self:center;margin-left:4px;background:none;border:none;padding:0}
+
+  /* DS card in grid */
+  .ds-grid{display:flex;flex-direction:column;gap:16px}
+  .ds-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+  .ds-card-header{
+    display:flex;align-items:center;gap:10px;padding:14px 16px;
+    border-bottom:1px solid var(--grid);
+  }
+  .ds-card-header .ds-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+  .ds-card-header .ds-title{font-size:14px;font-weight:700}
+  .ds-card-header .ds-total-wrap{
+    display:flex;align-items:center;gap:6px;
+  }
+  .ds-card-header .ds-cities-count{font-size:11px;color:var(--text-muted);margin-left:8px}
+  .ds-card-header .ds-actions{display:flex;gap:4px;margin-left:auto}
+  .ds-card-header .ds-total{font-size:18px;font-weight:700;font-variant-numeric:tabular-nums}
+  .ds-action-btn{
+    display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:6px;
+    font-size:11px;font-weight:600;cursor:pointer;border:1px solid var(--border);
+    background:var(--surface);color:var(--text-muted);transition:all .15s;white-space:nowrap;
+  }
+  .ds-action-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--badge-bg)}
+  .ds-action-btn.copied{border-color:#1baf7a;color:#1baf7a;background:rgba(27,175,122,.08)}
+  .ds-card-body{padding:12px 16px}
+  @media print{
+    .theme-toggle,.drop-zone,.filename-bar,.tabs,.preset-row,.chip-row,.ds-action-btn,.btn-sm,.search-input,.filter-section,.card:has(#dsChips){display:none!important}
+    .ds-card{break-inside:avoid;border:1px solid #ccc}
+    body{background:#fff!important;color:#000!important}
+    .ds-card-header{border-bottom:1px solid #ddd}
+    .bar-fill{print-color-adjust:exact;-webkit-print-color-adjust:exact}
+  }
+
+  .city-row{
+    display:flex;align-items:center;
+    padding:4px 0;border-bottom:1px solid var(--grid);gap:8px;
+  }
+  .city-row:last-child{border-bottom:none}
+  .city-row .city-name{font-size:13px;color:var(--text-secondary);flex:1;min-width:0}
+  .city-row .city-dots{flex:1;border-bottom:1px dotted var(--grid);min-width:20px;height:1px;margin:0 4px}
+  .city-row .city-value{font-size:13px;font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .bar-track{height:18px;background:var(--grid);border-radius:4px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:0 4px 4px 0;transition:width .5s cubic-bezier(.22,1,.36,1);min-width:2px}
+
+  /* Tabs */
+  .tabs{display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);overflow-x:auto}
+  .tab{padding:8px 16px;font-size:13px;font-weight:600;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;transition:color .15s,border-color .15s}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab:hover{color:var(--text-primary)}
+
+  .section{display:none}.section.active{display:block}
+
+  /* Simple bars */
+  .simple-bar-row{display:grid;grid-template-columns:140px 1fr 54px;align-items:center;gap:10px;margin-bottom:5px}
+  .simple-bar-row .item-name{font-size:12.5px;color:var(--text-secondary);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .simple-bar-row .bar-value{font-size:12.5px;font-weight:600;color:var(--text-primary);text-align:right;font-variant-numeric:tabular-nums}
+  .simple-bar-row:hover .bar-fill{filter:brightness(1.15)}
+
+  .btn-sm{background:var(--grid);color:var(--text-secondary);padding:5px 12px;border-radius:6px;border:none;font-size:11px;cursor:pointer;font-weight:600}
+
+  /* Table */
+  .table-view{display:none;margin-top:12px}.table-view.visible{display:block}
+  .table-view table{width:100%;border-collapse:collapse;font-size:12px}
+  .table-view th{text-align:left;padding:7px 10px;border-bottom:2px solid var(--border);color:var(--text-muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  .table-view th:nth-child(2),.table-view th:nth-child(3){text-align:right}
+  .table-view td{padding:6px 10px;border-bottom:1px solid var(--grid);color:var(--text-secondary)}
+  .table-view td:nth-child(2),.table-view td:nth-child(3){text-align:right;font-variant-numeric:tabular-nums}
+  .table-view td:nth-child(2){font-weight:600;color:var(--text-primary)}
+
+  /* Preset filter bar */
+  .preset-row{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  .preset-btn{
+    padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;
+    cursor:pointer;border:1px solid var(--border);background:var(--surface);
+    color:var(--text-secondary);transition:all .15s;
+  }
+  .preset-btn:hover{border-color:var(--accent)}
+  .preset-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+
+  .search-input{padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg);color:var(--text-primary);font-size:12px;width:140px}
+  .search-input:focus{outline:none;border-color:var(--accent)}
+
+  @media(max-width:500px){
+    .city-row{grid-template-columns:90px 1fr 40px;gap:5px}
+    .simple-bar-row{grid-template-columns:100px 1fr 44px}
+    .stat-tile .value{font-size:20px}
+    .ds-card-header .ds-total{font-size:16px}
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="toggleTheme()" id="themeBtn">🌙</button>
+
+<div class="container">
+  <header>
+    <h1>📦 Volumetria DC-PI2</h1>
+    <p>Arraste o arquivo .xlsx da planilha diária</p>
+  </header>
+
+  <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📂</div>
+    <p>Arraste o arquivo <strong>.xlsx</strong> aqui ou clique para selecionar</p>
+    <div class="hint">Arquivo PLANO_PI2 que você recebe todo dia</div>
+    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFile(this.files[0])">
+  </div>
+
+  <div class="filename-bar" id="fileBar" style="display:none;">
+    <span>📄</span><span class="name" id="fileName"></span>
+    <button onclick="resetAll()" style="margin-left:auto" class="btn-sm">Trocar arquivo</button>
+  </div>
+
+  <div class="stats-row" id="statsRow" style="display:none;">
+    <div class="stat-tile"><div class="label">Total pacotes</div><div class="value" id="statTotal">0</div></div>
+    <div class="stat-tile"><div class="label">DS ativos</div><div class="value" id="statDS">0</div></div>
+    <div class="stat-tile"><div class="label">Cidades</div><div class="value" id="statCities">0</div></div>
+    <div class="stat-tile"><div class="label">Veículos</div><div class="value" id="statVehicles">0</div></div>
+  </div>
+
+  <div class="tabs" id="tabsBar" style="display:none;">
+    <button class="tab active" data-tab="ds" onclick="switchTab('ds')">Por DS</button>
+    <button class="tab" data-tab="all-cities" onclick="switchTab('all-cities')">Todas as Cidades</button>
+    <button class="tab" data-tab="states" onclick="switchTab('states')">Por Estado</button>
+    <button class="tab" data-tab="plates" onclick="switchTab('plates')">Por Veículo</button>
+  </div>
+
+  <!-- DS VIEW -->
+  <div class="section active" id="sec-ds">
+    <div class="card" style="padding:14px 16px">
+      <div class="preset-row">
+        <span style="font-size:12px;font-weight:600;color:var(--text-muted)">Filtros rápidos:</span>
+        <button class="preset-btn active" data-preset="erika" onclick="applyPreset('erika')">DS Erika</button>
+        <button class="preset-btn" data-preset="all" onclick="applyPreset('all')">Todos os DS</button>
+        <button class="preset-btn" data-preset="top20" onclick="applyPreset('top20')">Top 20</button>
+        <input class="search-input" type="text" placeholder="Buscar DS..." id="searchDS" oninput="applyPreset('custom')">
+        <button class="preset-btn" onclick="printAllDS()" style="margin-left:auto;background:var(--badge-bg);color:var(--badge-text);border-color:var(--badge-text)">🖨️ Print Todos</button>
+      </div>
+      <div class="chip-row" id="dsChips" style="margin-top:8px"></div>
+    </div>
+
+    <div id="dsCards"></div>
+
+    <div class="card" style="margin-top:8px">
+      <h2>Resumo <span class="badge" id="dsSummaryBadge"></span></h2>
+      <div id="dsSummaryChart"></div>
+    </div>
+  </div>
+
+  <!-- ALL CITIES -->
+  <div class="section" id="sec-all-cities">
+    <div class="card">
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <span style="font-size:12px;font-weight:600;color:var(--text-muted)">Estado:</span>
+        <select id="filterState" onchange="renderAllCities()"><option value="">Todos</option></select>
+        <input class="search-input" type="text" placeholder="Buscar cidade..." id="searchCity" oninput="renderAllCities()">
+      </div>
+      <h2>Pacotes por cidade <span class="badge" id="cityBadge"></span></h2>
+      <div id="cityChart"></div>
+      <div id="cityShowMore" style="display:none;text-align:center;margin-top:10px">
+        <button class="btn-sm" onclick="showAllCitiesFlag=true;renderAllCities()">Mostrar todas</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STATES -->
+  <div class="section" id="sec-states">
+    <div class="card">
+      <h2>Pacotes por estado <span class="badge" id="stateBadge"></span></h2>
+      <div id="stateChart"></div>
+    </div>
+  </div>
+
+  <!-- PLATES -->
+  <div class="section" id="sec-plates">
+    <div class="card">
+      <h2>Pacotes por veículo <span class="badge" id="plateBadge"></span></h2>
+      <div id="plateChart"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DS_COLORS = ['--bar1','--bar2','--bar3','--bar4','--bar5','--bar1','--bar2','--bar3'];
+const ERIKA_DS = ['DS INS','DS PHI','DS LGP','DS BAC','DS MRE','DS ZDC'];
+const CITY_LIMIT = 30;
+
+let rawData = [], dsMap = {}, allDSNames = [];
+let activeDS = new Set(ERIKA_DS);
+let currentPreset = 'erika';
+let showAllCitiesFlag = false;
+
+const dropZone = document.getElementById('dropZone');
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('dragover')});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('dragover');if(e.dataTransfer.files.length)handleFile(e.dataTransfer.files[0])});
+
+function handleFile(file){
+  if(!file)return;
+  document.getElementById('fileName').textContent=file.name;
+  document.getElementById('fileBar').style.display='flex';
+  document.getElementById('dropZone').style.display='none';
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const data=new Uint8Array(e.target.result);
+    const wb=XLSX.read(data,{type:'array'});
+    let bestSheet=wb.SheetNames[0],bestRows=0;
+    for(const sn of wb.SheetNames){const ws=wb.Sheets[sn];const range=XLSX.utils.decode_range(ws['!ref']||'A1');const rows=range.e.r-range.s.r;if(rows>bestRows){bestRows=rows;bestSheet=sn}}
+    const ws=wb.Sheets[bestSheet];
+    const json=XLSX.utils.sheet_to_json(ws,{defval:''});
+    if(!json.length)return;
+    const colDS=findCol(json[0],['Delivery Station','DS']);
+    const colCity=findCol(json[0],['Consignee City','City','Cidade']);
+    const colState=findCol(json[0],['Consignee Province','Province','Estado']);
+    const colPlate=findCol(json[0],['License plate No.','License Plate','Placa']);
+    rawData=[];
+    for(const row of json){
+      const city=String(row[colCity]||'').trim();
+      if(!city)continue;
+      rawData.push({
+        ds:String(row[colDS]||'').trim()||'(sem DS)',
+        city,
+        state:String(row[colState]||'').trim(),
+        plate:String(row[colPlate]||'').trim()
+      });
+    }
+    processAll();
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function findCol(row,candidates){
+  const keys=Object.keys(row);
+  for(const c of candidates){const f=keys.find(k=>k.toLowerCase().includes(c.toLowerCase()));if(f)return f}
+  return keys[0];
+}
+
+function countBy(arr,key){
+  const map={};for(const item of arr){const v=item[key];if(v)map[v]=(map[v]||0)+1}
+  return Object.entries(map).map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty);
+}
+
+function buildDSMap(){
+  dsMap={};
+  for(const item of rawData){
+    if(!dsMap[item.ds])dsMap[item.ds]={name:item.ds,qty:0,cities:{}};
+    dsMap[item.ds].qty++;
+    dsMap[item.ds].cities[item.city]=(dsMap[item.ds].cities[item.city]||0)+1;
+  }
+  for(const ds of Object.values(dsMap)){
+    ds.cityList=Object.entries(ds.cities).map(([name,qty])=>({name,qty})).sort((a,b)=>b.qty-a.qty);
+  }
+  allDSNames=Object.keys(dsMap).sort((a,b)=>dsMap[b].qty-dsMap[a].qty);
+}
+
+function processAll(){
+  showAllCitiesFlag=false;
+  buildDSMap();
+  const total=rawData.length;
+  const cities=countBy(rawData,'city');
+  const states=countBy(rawData,'state');
+  const plates=countBy(rawData,'plate');
+
+  document.getElementById('statsRow').style.display='flex';
+  document.getElementById('tabsBar').style.display='flex';
+  document.getElementById('statTotal').textContent=total.toLocaleString('pt-BR');
+  document.getElementById('statDS').textContent=allDSNames.length;
+  document.getElementById('statCities').textContent=cities.length;
+  document.getElementById('statVehicles').textContent=plates.length;
+
+  const sel=document.getElementById('filterState');
+  sel.innerHTML='<option value="">Todos</option>';
+  for(const s of states){const opt=document.createElement('option');opt.value=s.name;opt.textContent=s.name+' ('+s.qty.toLocaleString('pt-BR')+')';sel.appendChild(opt)}
+
+  // Check if Erika DS exist in this file
+  const erikaAvail = ERIKA_DS.filter(d => dsMap[d]);
+  if (erikaAvail.length > 0) {
+    activeDS = new Set(erikaAvail);
+    currentPreset = 'erika';
+  } else {
+    activeDS = new Set(allDSNames.slice(0, 20));
+    currentPreset = 'top20';
+  }
+
+  renderDSChips();
+  renderDSView();
+  renderAllCities();
+  renderSimpleBars('stateChart',states,'stateBadge',total,'--bar2');
+  renderSimpleBars('plateChart',plates,'plateBadge',total,'--bar3');
+  switchTab('ds');
+}
+
+/* ===== DS CHIPS ===== */
+function renderDSChips(){
+  const container=document.getElementById('dsChips');
+  container.innerHTML='';
+  // Show chips for the top DS
+  const show = currentPreset === 'erika' ? ERIKA_DS.filter(d=>dsMap[d]) : allDSNames.slice(0,30);
+  for(const dsName of show){
+    if(!dsMap[dsName])continue;
+    const chip=document.createElement('span');
+    chip.className='chip'+(activeDS.has(dsName)?' active':'');
+    chip.textContent=dsName.replace('DS ','')+ ' ('+dsMap[dsName].qty.toLocaleString('pt-BR')+')';
+    chip.onclick=()=>{
+      if(activeDS.has(dsName))activeDS.delete(dsName);else activeDS.add(dsName);
+      currentPreset='custom';
+      document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+      renderDSChips();renderDSView();
+    };
+    container.appendChild(chip);
+  }
+}
+
+function applyPreset(preset){
+  currentPreset=preset;
+  document.querySelectorAll('.preset-btn').forEach(b=>b.classList.toggle('active',b.dataset.preset===preset));
+  const search=document.getElementById('searchDS').value.toLowerCase().trim();
+
+  if(preset==='erika'){
+    activeDS=new Set(ERIKA_DS.filter(d=>dsMap[d]));
+    document.getElementById('searchDS').value='';
+  }else if(preset==='all'){
+    activeDS=new Set(allDSNames);
+    document.getElementById('searchDS').value='';
+  }else if(preset==='top20'){
+    activeDS=new Set(allDSNames.slice(0,20));
+    document.getElementById('searchDS').value='';
+  }else if(preset==='custom'&&search){
+    activeDS=new Set(allDSNames.filter(d=>d.toLowerCase().includes(search)));
+  }
+  renderDSChips();renderDSView();
+}
+
+/* ===== DS CARDS ===== */
+function renderDSView(){
+  const container=document.getElementById('dsCards');
+  container.innerHTML='';
+  const selectedDS=allDSNames.filter(d=>activeDS.has(d));
+  const grandTotal=selectedDS.reduce((s,d)=>s+dsMap[d].qty,0);
+
+  document.getElementById('dsSummaryBadge').textContent=grandTotal.toLocaleString('pt-BR')+' pacotes · '+selectedDS.length+' DS';
+
+  let colorIdx=0;
+  for(const dsName of selectedDS){
+    const ds=dsMap[dsName];
+    const color=DS_COLORS[colorIdx%DS_COLORS.length];
+    colorIdx++;
+
+    const card=document.createElement('div');
+    card.className='ds-card';
+
+    // Header
+    const header=document.createElement('div');
+    header.className='ds-card-header';
+    const dot=document.createElement('div');
+    dot.className='ds-dot';dot.style.background='var('+color+')';
+    const title=document.createElement('div');
+    title.className='ds-title';title.textContent=dsName;
+    const count=document.createElement('div');
+    count.className='ds-cities-count';count.textContent=ds.cityList.length+' cidades';
+    const total=document.createElement('div');
+    total.className='ds-total';total.textContent=ds.qty.toLocaleString('pt-BR');
+    // Action buttons
+    const actions=document.createElement('div');
+    actions.className='ds-actions';
+
+    const copyBtn=document.createElement('button');
+    copyBtn.className='ds-action-btn';
+    copyBtn.innerHTML='📋 Copiar';
+    copyBtn.onclick=(e)=>{e.stopPropagation();copyDS(dsName,ds,copyBtn)};
+
+    const printBtn=document.createElement('button');
+    printBtn.className='ds-action-btn';
+    printBtn.innerHTML='🖨️ Print';
+    printBtn.onclick=(e)=>{e.stopPropagation();printDS(card,dsName)};
+
+    actions.appendChild(copyBtn);
+    actions.appendChild(printBtn);
+
+    header.appendChild(dot);header.appendChild(title);header.appendChild(count);
+    header.appendChild(actions);header.appendChild(total);
+    card.appendChild(header);
+
+    // Body with city list (name + qty)
+    const body=document.createElement('div');
+    body.className='ds-card-body';
+
+    for(const city of ds.cityList){
+      const row=document.createElement('div');
+      row.className='city-row';
+      const nameEl=document.createElement('div');
+      nameEl.className='city-name';nameEl.textContent=city.name;
+      const dots=document.createElement('div');
+      dots.className='city-dots';
+      const val=document.createElement('div');
+      val.className='city-value';val.textContent=city.qty.toLocaleString('pt-BR');
+      row.appendChild(nameEl);row.appendChild(dots);row.appendChild(val);
+      body.appendChild(row);
+    }
+    card.appendChild(body);
+    container.appendChild(card);
+  }
+
+  // Summary bar chart
+  const summaryData=selectedDS.map(d=>({name:d,qty:dsMap[d].qty}));
+  renderSimpleBars('dsSummaryChart',summaryData,null,grandTotal,'--bar1');
+}
+
+/* ===== COPY / PRINT DS ===== */
+function copyDS(dsName,ds,btn){
+  let text=dsName+'  —  '+ds.qty.toLocaleString('pt-BR')+' pacotes\n';
+  text+=ds.cityList.length+' cidades\n\n';
+  for(const c of ds.cityList){
+    text+=c.name.padEnd(25)+c.qty.toLocaleString('pt-BR')+'\n';
+  }
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.classList.add('copied');btn.innerHTML='✅ Copiado!';
+    setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML='📋 Copiar'},1500);
+  }).catch(()=>{
+    // fallback
+    const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');document.body.removeChild(ta);
+    btn.classList.add('copied');btn.innerHTML='✅ Copiado!';
+    setTimeout(()=>{btn.classList.remove('copied');btn.innerHTML='📋 Copiar'},1500);
+  });
+}
+
+function getPrintCSS(){
+  return '*{margin:0;padding:0;box-sizing:border-box}'+
+  'body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:16px;background:#fff;color:#111}'+
+  '.ds-card{border:1px solid #ddd;border-radius:12px;overflow:hidden;max-width:600px;margin:0 auto 24px}'+
+  '.ds-card-header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #eee}'+
+  '.ds-dot{width:10px;height:10px;border-radius:50%}.ds-title{font-size:14px;font-weight:700}'+
+  '.ds-cities-count{font-size:11px;color:#888;margin-left:8px}'+
+  '.ds-actions{display:none}.ds-total{font-size:18px;font-weight:700;margin-left:auto}'+
+  '.ds-card-body{padding:10px 16px}'+
+  '.city-row{display:flex;align-items:center;padding:3px 0;border-bottom:1px solid #f0f0f0;gap:6px}'+
+  '.city-row:last-child{border-bottom:none}'+
+  '.city-name{font-size:13px;color:#333}'+
+  '.city-dots{flex:1;border-bottom:1px dotted #ccc;min-width:10px;height:1px;margin:0 2px}'+
+  '.city-value{font-size:13px;font-weight:700;white-space:nowrap}'+
+  '@media print{body{padding:8px}.ds-card{border:1px solid #ccc;break-inside:avoid}.page-break{break-before:page}}';
+}
+
+function printDS(cardEl,dsName){
+  const clone=cardEl.cloneNode(true);
+  clone.querySelectorAll('.ds-action-btn').forEach(b=>b.remove());
+  const win=window.open('','_blank','width=700,height=600');
+  if(!win)return;
+  win.document.write('<!DOCTYPE html><html><head><title>'+dsName+'</title><style>'+getPrintCSS()+'</style></head><body>');
+  win.document.write(clone.outerHTML);
+  win.document.write('</body></html>');
+  win.document.close();
+  setTimeout(()=>win.print(),300);
+}
+
+function printAllDS(){
+  const selectedDS=allDSNames.filter(d=>activeDS.has(d));
+  if(!selectedDS.length)return;
+  const win=window.open('','_blank','width=700,height=600');
+  if(!win)return;
+  win.document.write('<!DOCTYPE html><html><head><title>Volumetria - Todos DS</title><style>'+getPrintCSS()+'</style></head><body>');
+  const cards=document.getElementById('dsCards').querySelectorAll('.ds-card');
+  let i=0;
+  for(const card of cards){
+    const clone=card.cloneNode(true);
+    clone.querySelectorAll('.ds-action-btn').forEach(b=>b.remove());
+    if(i>0)win.document.write('<div class="page-break"></div>');
+    win.document.write(clone.outerHTML);
+    i++;
+  }
+  win.document.write('</body></html>');
+  win.document.close();
+  setTimeout(()=>win.print(),400);
+}
+
+/* ===== ALL CITIES ===== */
+function renderAllCities(){
+  const stateFilter=document.getElementById('filterState').value;
+  const search=document.getElementById('searchCity').value.toLowerCase().trim();
+  let filtered=rawData;
+  if(stateFilter)filtered=filtered.filter(r=>r.state===stateFilter);
+  let cities=countBy(filtered,'city');
+  if(search)cities=cities.filter(c=>c.name.toLowerCase().includes(search));
+  const total=cities.reduce((s,c)=>s+c.qty,0);
+  document.getElementById('cityBadge').textContent=total.toLocaleString('pt-BR')+' pacotes · '+cities.length+' cidades';
+  const limit=showAllCitiesFlag?cities.length:Math.min(CITY_LIMIT,cities.length);
+  renderSimpleBars('cityChart',cities.slice(0,limit),null,total,'--bar1');
+  const m=document.getElementById('cityShowMore');
+  if(cities.length>CITY_LIMIT&&!showAllCitiesFlag){m.style.display='block';m.querySelector('button').textContent='Mostrar todas ('+cities.length+')'}else{m.style.display='none'}
+}
+
+/* ===== SIMPLE BARS ===== */
+function renderSimpleBars(containerId,data,badgeId,total,colorVar){
+  const container=document.getElementById(containerId);container.innerHTML='';
+  if(!data.length)return;
+  if(badgeId)document.getElementById(badgeId).textContent=total.toLocaleString('pt-BR')+' pacotes';
+  const maxQty=data[0].qty;
+  for(const item of data){
+    const pct=(item.qty/maxQty)*100;
+    const row=document.createElement('div');row.className='simple-bar-row';
+    const nameEl=document.createElement('div');nameEl.className='item-name';nameEl.textContent=item.name;
+    const track=document.createElement('div');track.className='bar-track';
+    const fill=document.createElement('div');fill.className='bar-fill';fill.style.width='0%';fill.style.background='var('+colorVar+')';
+    track.appendChild(fill);
+    const val=document.createElement('div');val.className='bar-value';val.textContent=item.qty.toLocaleString('pt-BR');
+    row.appendChild(nameEl);row.appendChild(track);row.appendChild(val);
+    container.appendChild(row);
+    requestAnimationFrame(()=>{requestAnimationFrame(()=>{fill.style.width=pct+'%'})});
+  }
+}
+
+function toggleTable(id){document.getElementById(id).classList.toggle('visible')}
+function switchTab(tab){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.dataset.tab===tab));
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById('sec-'+tab).classList.add('active');
+}
+
+function resetAll(){
+  document.getElementById('dropZone').style.display='block';
+  document.getElementById('fileBar').style.display='none';
+  document.getElementById('statsRow').style.display='none';
+  document.getElementById('tabsBar').style.display='none';
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  rawData=[];dsMap={};allDSNames=[];
+}
+
+function toggleTheme(){
+  const next=document.body.getAttribute('data-theme')==='dark'?'light':'dark';
+  document.body.setAttribute('data-theme',next);
+  document.getElementById('themeBtn').textContent=next==='dark'?'☀️':'🌙';
+  try{localStorage.setItem('theme',next)}catch(e){}
+}
+try{const saved=localStorage.getItem('theme');if(saved){document.body.setAttribute('data-theme',saved);document.getElementById('themeBtn').textContent=saved==='dark'?'☀️':'🌙'}}catch(e){}
+</script>
+</body>
+</html>
