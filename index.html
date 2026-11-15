@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Volumetria DC-PI2</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
   :root{color-scheme:light dark}*{margin:0;padding:0;box-sizing:border-box}
   body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text-primary);min-height:100vh}
@@ -208,7 +209,7 @@
         <button class="preset-btn" data-preset="all" onclick="applyPreset('all')">Todos os DS</button>
         <button class="preset-btn" data-preset="top20" onclick="applyPreset('top20')">Top 20</button>
         <input class="search-input" type="text" placeholder="Buscar DS..." id="searchDS" oninput="applyPreset('custom')">
-        <button class="preset-btn" onclick="printAllDS()" style="margin-left:auto;background:var(--badge-bg);color:var(--badge-text);border-color:var(--badge-text)">🖨️ Print Todos</button>
+        <button class="preset-btn" onclick="printAllDS()" style="margin-left:auto;background:var(--badge-bg);color:var(--badge-text);border-color:var(--badge-text)">📸 Print Todos</button>
       </div>
       <div class="chip-row" id="dsChips" style="margin-top:8px"></div>
     </div>
@@ -445,8 +446,8 @@ function renderDSView(){
 
     const printBtn=document.createElement('button');
     printBtn.className='ds-action-btn';
-    printBtn.innerHTML='🖨️ Print';
-    printBtn.onclick=(e)=>{e.stopPropagation();printDS(card,dsName)};
+    printBtn.innerHTML='📸 Print';
+    printBtn.onclick=(e)=>{e.stopPropagation();printDS(card,dsName,printBtn)};
 
     actions.appendChild(copyBtn);
     actions.appendChild(printBtn);
@@ -498,53 +499,40 @@ function copyDS(dsName,ds,btn){
   });
 }
 
-function getPrintCSS(){
-  return '*{margin:0;padding:0;box-sizing:border-box}'+
-  'body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:16px;background:#fff;color:#111}'+
-  '.ds-card{border:1px solid #ddd;border-radius:12px;overflow:hidden;max-width:600px;margin:0 auto 24px}'+
-  '.ds-card-header{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid #eee}'+
-  '.ds-dot{width:10px;height:10px;border-radius:50%}.ds-title{font-size:14px;font-weight:700}'+
-  '.ds-cities-count{font-size:11px;color:#888;margin-left:8px}'+
-  '.ds-actions{display:none}.ds-total{font-size:18px;font-weight:700;margin-left:auto}'+
-  '.ds-card-body{padding:10px 16px}'+
-  '.city-row{display:flex;align-items:center;padding:3px 0;border-bottom:1px solid #f0f0f0;gap:6px}'+
-  '.city-row:last-child{border-bottom:none}'+
-  '.city-name{font-size:13px;color:#333}'+
-  '.city-dots{flex:1;border-bottom:1px dotted #ccc;min-width:10px;height:1px;margin:0 2px}'+
-  '.city-value{font-size:13px;font-weight:700;white-space:nowrap}'+
-  '@media print{body{padding:8px}.ds-card{border:1px solid #ccc;break-inside:avoid}.page-break{break-before:page}}';
-}
-
-function printDS(cardEl,dsName){
-  const clone=cardEl.cloneNode(true);
-  clone.querySelectorAll('.ds-action-btn').forEach(b=>b.remove());
-  const win=window.open('','_blank','width=700,height=600');
-  if(!win)return;
-  win.document.write('<!DOCTYPE html><html><head><title>'+dsName+'</title><style>'+getPrintCSS()+'</style></head><body>');
-  win.document.write(clone.outerHTML);
-  win.document.write('</body></html>');
-  win.document.close();
-  setTimeout(()=>win.print(),300);
+function printDS(cardEl,dsName,btn){
+  const oldText=btn.innerHTML;
+  btn.innerHTML='⏳ Gerando...';
+  html2canvas(cardEl,{backgroundColor:'#ffffff',scale:2,useCORS:true}).then(canvas=>{
+    const link=document.createElement('a');
+    link.download=dsName.replace(/\s+/g,'_')+'.png';
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    btn.innerHTML='✅ Salvo!';
+    setTimeout(()=>{btn.innerHTML=oldText},1500);
+  }).catch(()=>{btn.innerHTML=oldText});
 }
 
 function printAllDS(){
   const selectedDS=allDSNames.filter(d=>activeDS.has(d));
   if(!selectedDS.length)return;
-  const win=window.open('','_blank','width=700,height=600');
-  if(!win)return;
-  win.document.write('<!DOCTYPE html><html><head><title>Volumetria - Todos DS</title><style>'+getPrintCSS()+'</style></head><body>');
   const cards=document.getElementById('dsCards').querySelectorAll('.ds-card');
-  let i=0;
-  for(const card of cards){
-    const clone=card.cloneNode(true);
-    clone.querySelectorAll('.ds-action-btn').forEach(b=>b.remove());
-    if(i>0)win.document.write('<div class="page-break"></div>');
-    win.document.write(clone.outerHTML);
-    i++;
+  const allBtn=document.querySelector('[onclick="printAllDS()"]');
+  if(allBtn)allBtn.innerHTML='⏳ Gerando...';
+  let idx=0;
+  function nextCard(){
+    if(idx>=cards.length){if(allBtn){allBtn.innerHTML='✅ Salvo!';setTimeout(()=>{allBtn.innerHTML='📸 Print Todos'},1500);}return;}
+    const card=cards[idx];
+    const name=card.querySelector('.ds-title')?.textContent||('DS_'+idx);
+    html2canvas(card,{backgroundColor:'#ffffff',scale:2,useCORS:true}).then(canvas=>{
+      const link=document.createElement('a');
+      link.download=name.replace(/\s+/g,'_')+'.png';
+      link.href=canvas.toDataURL('image/png');
+      link.click();
+      idx++;
+      setTimeout(nextCard,300);
+    }).catch(()=>{idx++;nextCard();});
   }
-  win.document.write('</body></html>');
-  win.document.close();
-  setTimeout(()=>win.print(),400);
+  nextCard();
 }
 
 /* ===== ALL CITIES ===== */
