@@ -112,8 +112,8 @@
     padding:4px 0;border-bottom:1px solid var(--grid);gap:8px;
   }
   .city-row:last-child{border-bottom:none}
-  .city-row .city-name{font-size:13px;color:var(--text-secondary);flex:1;min-width:0}
-  .city-row .city-dots{flex:1;border-bottom:1px dotted var(--grid);min-width:20px;height:1px;margin:0 4px}
+  .city-row .city-name{font-size:13px;color:var(--text-secondary);white-space:nowrap}
+  .city-row .city-dots{flex:1;border-bottom:1px dotted var(--grid);min-width:8px;height:1px;margin:0 4px}
   .city-row .city-value{font-size:13px;font-weight:700;color:var(--text-primary);font-variant-numeric:tabular-nums;white-space:nowrap}
   .bar-track{height:18px;background:var(--grid);border-radius:4px;overflow:hidden}
   .bar-fill{height:100%;border-radius:0 4px 4px 0;transition:width .5s cubic-bezier(.22,1,.36,1);min-width:2px}
@@ -502,7 +502,7 @@ function copyDS(dsName,ds,btn){
 function printDS(cardEl,dsName,btn){
   const oldText=btn.innerHTML;
   btn.innerHTML='⏳ Gerando...';
-  html2canvas(cardEl,{backgroundColor:'#ffffff',scale:2,useCORS:true}).then(canvas=>{
+  html2canvas(cardEl,{backgroundColor:'#ffffff',scale:3,useCORS:true}).then(canvas=>{
     const link=document.createElement('a');
     link.download=dsName.replace(/\s+/g,'_')+'.png';
     link.href=canvas.toDataURL('image/png');
@@ -523,7 +523,7 @@ function printAllDS(){
     if(idx>=cards.length){if(allBtn){allBtn.innerHTML='✅ Salvo!';setTimeout(()=>{allBtn.innerHTML='📸 Print Todos'},1500);}return;}
     const card=cards[idx];
     const name=card.querySelector('.ds-title')?.textContent||('DS_'+idx);
-    html2canvas(card,{backgroundColor:'#ffffff',scale:2,useCORS:true}).then(canvas=>{
+    html2canvas(card,{backgroundColor:'#ffffff',scale:3,useCORS:true}).then(canvas=>{
       const link=document.createElement('a');
       link.download=name.replace(/\s+/g,'_')+'.png';
       link.href=canvas.toDataURL('image/png');
