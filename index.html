@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Volumetria DC-PI2</title>
+<title>Expectativa iMile</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -170,7 +170,7 @@
 
 <div class="container">
   <header>
-    <h1>📦 Volumetria DC-PI2</h1>
+    <h1>📦 Expectativa iMile</h1>
     <p>Arraste o arquivo .xlsx da planilha diária</p>
   </header>
 
@@ -285,8 +285,8 @@ function handleFile(file){
     const json=XLSX.utils.sheet_to_json(ws,{defval:''});
     if(!json.length)return;
     const colDS=findCol(json[0],['Delivery Station','DS']);
-    const colCity=findCol(json[0],['Consignee City','City','Cidade']);
-    const colState=findCol(json[0],['Consignee Province','Province','Estado']);
+    const colCity=findCol(json[0],['Consignee City','City','Cidade','Loading station']);
+    const colState=findCol(json[0],['Consignee Province','Province','Estado','Scan State Name']);
     const colPlate=findCol(json[0],['License plate No.','License Plate','Placa']);
     rawData=[];
     for(const row of json){
@@ -595,5 +595,10 @@ function toggleTheme(){
 }
 try{const saved=localStorage.getItem('theme');if(saved){document.body.setAttribute('data-theme',saved);document.getElementById('themeBtn').textContent=saved==='dark'?'☀️':'🌙'}}catch(e){}
 </script>
+
+<footer style="text-align:center;padding:32px 16px 24px;color:var(--text-muted);font-size:12px;border-top:1px solid var(--border);margin-top:40px">
+  <p style="font-weight:600;color:var(--text-secondary);font-size:13px">Desenvolvido por PH Soluções Logística</p>
+  <p style="margin-top:4px">Contato: (98) 99132-2884</p>
+</footer>
 </body>
 </html>
